@@ -1,3 +1,4 @@
+// components/NewHeader.jsx
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
@@ -6,10 +7,9 @@ export default function NewHeader() {
   const [mobile, setMobile] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
   const [lang, setLang] = useState("EN");
-  const [solOpen, setSolOpen] = useState(false);
-  const [aboutOpen, setAboutOpen] = useState(false);
-  const [sheet, setSheet] = useState(false); // <-- drawer "Schedule a call"
-
+  const [onHero, setOnHero] = useState(false);
+  const [toContactFx, setToContactFx] = useState(false);
+  const [toSolutionsFx, setToSolutionsFx] = useState(false); // <<< NEW
   const langRef = useRef(null);
 
   useEffect(() => {
@@ -19,7 +19,18 @@ export default function NewHeader() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // chiudi language quando clicchi fuori
+  useEffect(() => {
+    if (typeof window === "undefined" || !("IntersectionObserver" in window)) return;
+    const el = document.getElementById("hero-sentinel");
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([entry]) => setOnHero(entry.isIntersecting),
+      { rootMargin: "-72px 0px 0px 0px", threshold: 0 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
   useEffect(() => {
     const onDoc = (e) => {
       if (!langRef.current) return;
@@ -29,438 +40,265 @@ export default function NewHeader() {
     return () => document.removeEventListener("click", onDoc);
   }, []);
 
+  const openSchedule = () => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("open-schedule"));
+    }
+  };
+
+  // ========= CONTACT (già presente) =========
+  const goToContact = (e) => {
+    e?.preventDefault?.();
+    const target = document.getElementById("contact");
+    setToContactFx(true);
+    setMobile(false);
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+
+    const doScroll = () => {
+      if (!target) {
+        window.location.assign("/contact#contact");
+        return;
+      }
+      const headerH = 84;
+      const y = window.scrollY + target.getBoundingClientRect().top - headerH;
+      window.scrollTo({ top: y, behavior: reduce ? "auto" : "smooth" });
+      window.dispatchEvent(new CustomEvent("contact-highlight"));
+    };
+
+    if (reduce) {
+      doScroll();
+      setToContactFx(false);
+      return;
+    }
+    setTimeout(doScroll, 220);
+    setTimeout(() => setToContactFx(false), 1100);
+  };
+
+  // ========= SOLUTIONS (NEW) =========
+  const goToSolutions = (e) => {
+    e?.preventDefault?.();
+    const target = document.getElementById("solutions"); // <<< sezione SolutionsGrid
+    setToSolutionsFx(true);
+    setMobile(false);
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+
+    const doScroll = () => {
+      if (!target) {
+        // fallback: pagina dedicata se non c'è la sezione
+        window.location.assign("/solutions#solutions");
+        return;
+      }
+      const headerH = 84;
+      const y = window.scrollY + target.getBoundingClientRect().top - headerH;
+      window.scrollTo({ top: y, behavior: reduce ? "auto" : "smooth" });
+      // segnala al componente per “pulse”/highlight
+      window.dispatchEvent(new CustomEvent("solutions-highlight"));
+    };
+
+    if (reduce) {
+      doScroll();
+      setToSolutionsFx(false);
+      return;
+    }
+    setTimeout(doScroll, 220);
+    setTimeout(() => setToSolutionsFx(false), 1100);
+  };
+
+  const headerBase =
+    "sticky top-0 z-50 backdrop-blur-xl transition-[background,box-shadow] duration-300 motion-reduce:transition-none";
+  const headerLook = (!scrolled && !onHero)
+    ? "bg-neutral-950/90 shadow-[0_8px_30px_rgba(0,0,0,0.35)]"
+    : (onHero && !scrolled)
+    ? "bg-neutral-950/30"
+    : "bg-neutral-950/60 shadow-[0_8px_30px_rgba(0,0,0,0.35)]";
+
   return (
-    <header className={`hdr ${scrolled ? "scrolled" : ""}`} role="banner">
-      {/* fascia utility */}
-      <div className="util">
-        <div className="inner">
-          <nav className="util-nav" aria-label="Utilities">
-            <Link href="/careers">Careers</Link>
-            <Link href="/faq">FAQ</Link>
-            <Link href="/login">Login</Link>
+    <header className={`${headerBase} ${headerLook}`} aria-label="Header">
+      {/* Utility bar */}
+      <div className="border-b border-white/10">
+        <div className="max-w-screen-xl mx-auto px-5 py-2.5 flex items-center justify-between">
+          <nav className="flex gap-4" aria-label="Utilities">
+            <Link href="/privacy" className="text-sm font-bold text-slate-100/80 hover:text-white transition-colors">Privacy</Link>
+            <Link href="/faq" className="text-sm font-bold text-slate-100/80 hover:text-white transition-colors">FAQ</Link>
           </nav>
 
-          <div className="util-right">
+          <div className="flex items-center gap-2">
             {/* Language */}
-            <div className="lang" ref={langRef}>
+            <div className="relative" ref={langRef}>
               <button
-                className="langBtn"
+                className="inline-flex items-center gap-2 h-9 px-3 rounded-full font-extrabold text-slate-100/90 hover:text-white bg-white/5 hover:bg-white/8 border border-white/12 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_6px_20px_rgba(0,0,0,0.35)] transition-colors"
                 aria-haspopup="listbox"
                 aria-expanded={langOpen}
-                onClick={() => setLangOpen((v) => !v)}
+                onClick={() => setLangOpen(v => !v)}
               >
-                <Globe />
-                <span>{lang}</span>
-                <ChevronDown />
+                <Globe /><span>{lang}</span><ChevronDown />
               </button>
-              <ul className={`langMenu ${langOpen ? "show" : ""}`} role="listbox">
-                {["EN", "NL", "IT"].map((l) => (
+
+              <ul
+                className={`absolute right-0 top-11 min-w-[200px] p-1 rounded-xl border border-white/12 bg-neutral-900/70 backdrop-blur-xl shadow-[0_24px_50px_rgba(0,0,0,0.45)] transition-all ${langOpen ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 -translate-y-1 pointer-events-none"}`}
+                role="listbox"
+              >
+                {["EN","NL","IT"].map((l)=>(
                   <li key={l}>
                     <button
-                      className={`langItem ${lang === l ? "active" : ""}`}
-                      role="option"
-                      aria-selected={lang === l}
-                      onClick={() => {
-                        setLang(l);
-                        setLangOpen(false);
-                      }}
+                      className={`w-full text-left px-3 py-2.5 rounded-lg font-extrabold text-slate-100/90 hover:text-white ${lang===l ? "bg-emerald-400/15 text-white border border-emerald-400/20" : "hover:bg-white/6"}`}
+                      role="option" aria-selected={lang===l}
+                      onClick={()=>{setLang(l); setLangOpen(false);}}
                     >
-                      {l === "EN" ? "English" : l === "NL" ? "Nederlands" : "Italiano"}
+                      {l==="EN"?"English":l==="NL"?"Nederlands":"Italiano"}
                     </button>
                   </li>
                 ))}
               </ul>
             </div>
 
-            {/* search */}
-            <button className="iconBtn" aria-label="Search">
+            {/* Search */}
+            <button
+              className="h-9 w-9 rounded-full grid place-items-center text-slate-100/90 hover:text-white bg-white/5 hover:bg-white/8 border border-white/12 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-colors"
+              aria-label="Search"
+            >
               <SearchIcon />
             </button>
           </div>
         </div>
       </div>
 
-      {/* fascia principale */}
-      <div className="main">
-        <div className="inner">
-          {/* logo */}
-          <Link href="/" className="logo" aria-label="Planttec, Home">
-            <span className="monogram">PT</span>
-            <span className="brand">Planttec</span>
+      {/* Main bar */}
+      <div>
+        <div className="max-w-screen-xl mx-auto px-5 py-3 flex items-center justify-between">
+          <Link href="/" aria-label="Planttec, Home" className="flex items-center gap-3 text-white no-underline">
+            <span className="relative w-10 h-10 rounded-2xl grid place-items-center font-black text-emerald-100 border border-white/12 bg-white/6 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_10px_30px_rgba(0,0,0,0.45)]">
+              PT
+              <span className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-emerald-400/30" />
+            </span>
+            <span className="font-black text-xl tracking-tight text-white/95">Planttec</span>
           </Link>
 
-          {/* nav desktop */}
-          <nav className="nav" aria-label="Main">
-            <div
-              className="dd"
-              onMouseEnter={() => setSolOpen(true)}
-              onMouseLeave={() => setSolOpen(false)}
+          <nav className="hidden md:flex items-center gap-1.5" aria-label="Main">
+            {/* Solutions -> scroll + effetto */}
+            <button
+              onClick={goToSolutions}
+              className="px-3 py-2 rounded-lg font-extrabold text-slate-100/85 hover:text-white hover:bg-white/6 border border-transparent hover:border-white/10 transition-colors"
             >
-              <button
-                className="link"
-                aria-haspopup="true"
-                aria-expanded={solOpen}
-                onClick={() => setSolOpen((v) => !v)}
-              >
-                Solutions <ChevronDown />
-              </button>
+              Solutions
+            </button>
 
-              {/* pannello dropdown allineato */}
-              <div className={`panel ${solOpen ? "open" : ""}`} role="menu">
-                <Link className="item" href="#">Greenhouse Analytics</Link>
-                <Link className="item" href="#">Climate Strategy</Link>
-                <Link className="item" href="#">Yield Forecasting</Link>
-                <Link className="item" href="#">Systems Integration</Link>
-              </div>
-            </div>
+            <Link href="/news" className="px-3 py-2 rounded-lg font-extrabold text-slate-100/85 hover:text-white hover:bg-white/6 border border-transparent hover:border-white/10 transition-colors">News</Link>
 
-            <Link href="/cases" className="link">Cases</Link>
-
-            <div
-              className="dd"
-              onMouseEnter={() => setAboutOpen(true)}
-              onMouseLeave={() => setAboutOpen(false)}
+            <button
+              onClick={goToContact}
+              className="px-3 py-2 rounded-lg font-extrabold text-slate-100/85 hover:text-white hover:bg-white/6 border border-transparent hover:border-white/10 transition-colors"
             >
-              <button
-                className="link"
-                aria-haspopup="true"
-                aria-expanded={aboutOpen}
-                onClick={() => setAboutOpen((v) => !v)}
-              >
-                About us <ChevronDown />
-              </button>
-              <div className={`panel ${aboutOpen ? "open" : ""}`} role="menu">
-                <Link className="item" href="/about">Company</Link>
-                <Link className="item" href="/team">Team</Link>
-                <Link className="item" href="/certifications">Certifications</Link>
-              </div>
-            </div>
-
-            <Link href="/news" className="link">News</Link>
-            <Link href="/contact" className="link">Contact</Link>
+              Contact
+            </button>
           </nav>
 
-          {/* CTA + burger */}
-          <div className="right">
-            {/* CTA apre il drawer */}
-            <button type="button" className="cta" onClick={() => setSheet(true)}>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={openSchedule}
+              className="inline-flex items-center gap-2 h-11 px-5 rounded-full font-black text-emerald-50 bg-gradient-to-r from-emerald-500 to-emerald-700 shadow-[0_12px_28px_rgba(16,185,129,0.35)] hover:translate-y-[-2px] active:translate-y-0 transition-transform"
+            >
               Schedule a call <ArrowRight />
             </button>
 
             <button
-              className={`burger ${mobile ? "open" : ""}`}
-              aria-label="Open menu"
-              aria-expanded={mobile}
-              onClick={() => setMobile((v) => !v)}
+              className="md:hidden inline-grid place-items-center w-11 h-10 rounded-xl text-white bg-white/6 border border-white/12 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-colors hover:bg-white/10"
+              aria-label="Open menu" aria-expanded={mobile}
+              onClick={()=>setMobile(v=>!v)}
             >
-              <span /><span /><span />
+              <span className="w-5 h-0.5 bg-white rounded" />
+              <span className="w-5 h-0.5 bg-white rounded my-1" />
+              <span className="w-5 h-0.5 bg-white rounded" />
             </button>
           </div>
         </div>
       </div>
 
-      {/* mobile drawer */}
-      <div className={`drawer ${mobile ? "show" : ""}`} role="dialog" aria-modal="true">
-        <div className="drawer-body">
-          <Link href="/solutions" className="m-link" onClick={() => setMobile(false)}>Solutions</Link>
-          <Link href="/cases" className="m-link" onClick={() => setMobile(false)}>Cases</Link>
-          <Link href="/about" className="m-link" onClick={() => setMobile(false)}>About us</Link>
-          <Link href="/news" className="m-link" onClick={() => setMobile(false)}>News</Link>
-          <Link href="/contact" className="m-link" onClick={() => setMobile(false)}>Contact</Link>
-          <button className="m-cta" onClick={() => { setMobile(false); setSheet(true); }}>
-            Schedule a call
-          </button>
+      {/* Drawer mobile */}
+      {mobile && (
+        <div className="fixed inset-0 z-[60]">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={()=>setMobile(false)} />
+          <div className="absolute top-0 right-0 h-full w-[86vw] max-w-md bg-neutral-900/70 backdrop-blur-xl border-l border-white/10 shadow-[0_24px_60px_rgba(0,0,0,0.6)] p-4 grid gap-2">
+            <button
+              onClick={goToSolutions}
+              className="px-3 py-3 text-left rounded-lg font-extrabold text-slate-100/95 hover:text-white hover:bg-white/6 border border-transparent hover:border-white/10 transition-colors"
+            >
+              Solutions
+            </button>
+            <Link href="/cases" className="px-3 py-3 rounded-lg font-extrabold text-slate-100/95 hover:text-white hover:bg-white/6 border border-transparent hover:border-white/10 transition-colors" onClick={()=>setMobile(false)}>Cases</Link>
+            <Link href="/about" className="px-3 py-3 rounded-lg font-extrabold text-slate-100/95 hover:text-white hover:bg-white/6 border border-transparent hover:border-white/10 transition-colors" onClick={()=>setMobile(false)}>About us</Link>
+            <Link href="/news" className="px-3 py-3 rounded-lg font-extrabold text-slate-100/95 hover:text-white hover:bg-white/6 border border-transparent hover:border-white/10 transition-colors" onClick={()=>setMobile(false)}>News</Link>
+            <button
+              onClick={goToContact}
+              className="px-3 py-3 text-left rounded-lg font-extrabold text-slate-100/95 hover:text-white hover:bg-white/6 border border-transparent hover:border-white/10 transition-colors"
+            >
+              Contact
+            </button>
+            <button
+              className="mt-2 h-11 rounded-full font-black text-emerald-50 bg-gradient-to-r from-emerald-500 to-emerald-700 shadow-[0_12px_28px_rgba(16,185,129,0.35)] hover:translate-y-[-2px] active:translate-y-0 transition-transform"
+              onClick={() => { setMobile(false); openSchedule(); }}
+            >
+              Schedule a call
+            </button>
+          </div>
         </div>
+      )}
+
+      {/* Overlay → Contact */}
+      <div className={`pointer-events-none fixed inset-0 z-[70] ${toContactFx ? "opacity-100" : "opacity-0"} transition-opacity duration-200`}>
+        <div className={`absolute inset-0 bg-neutral-950/40 backdrop-blur-[2px] ${toContactFx ? "contactFx-fadeIn" : ""}`} />
+        <div className={`absolute -inset-20 ${toContactFx ? "contactFx-sweep" : ""}`}
+          style={{
+            background:
+              "radial-gradient(800px 400px at 10% -10%, rgba(16,185,129,0.26), transparent 60%)," +
+              "radial-gradient(800px 400px at 110% 110%, rgba(5,150,105,0.22), transparent 60%)"
+          }}
+        />
       </div>
 
-      {/* ------- SCHEDULE SHEET (banner) ------- */}
-      <div className={`sheet ${sheet ? "show" : ""}`} role="dialog" aria-modal="true" aria-label="Schedule a call">
-        <button className="x" aria-label="Close banner" onClick={() => setSheet(false)}>×</button>
-
-        <div className="sheet-hero">
-          <h3>Any Questions?</h3>
-          <p>Book a quick call with our specialists.</p>
-        </div>
-
-        <form className="form" onSubmit={(e) => e.preventDefault()}>
-          <div className="row">
-            <div className="field">
-              <input id="name" name="name" placeholder=" " required />
-              <label htmlFor="name">Your name</label>
-            </div>
-            <div className="field">
-              <input id="email" name="email" type="email" placeholder=" " required />
-              <label htmlFor="email">Email</label>
-            </div>
-          </div>
-
-          <div className="row">
-            <div className="field">
-              <input id="phone" name="phone" placeholder=" " />
-              <label htmlFor="phone">Phone (optional)</label>
-            </div>
-            <div className="field">
-              <input id="company" name="company" placeholder=" " />
-              <label htmlFor="company">Company</label>
-            </div>
-          </div>
-
-          <div className="field full">
-            <textarea id="note" name="note" rows={4} placeholder=" " />
-            <label htmlFor="note">How can we help?</label>
-          </div>
-
-          <label className="switch">
-            <input type="checkbox" required />
-            <span className="track" aria-hidden />
-            <span className="txt">I agree to be contacted regarding my request</span>
-          </label>
-
-          <button type="submit" className="submit">Send request</button>
-        </form>
+      {/* Overlay → Solutions (NEW) */}
+      <div className={`pointer-events-none fixed inset-0 z-[70] ${toSolutionsFx ? "opacity-100" : "opacity-0"} transition-opacity duration-200`}>
+        <div className={`absolute inset-0 bg-neutral-950/30 backdrop-blur-[2px] ${toSolutionsFx ? "solutionsFx-fadeIn" : ""}`} />
+        <div className={`absolute -inset-20 ${toSolutionsFx ? "solutionsFx-sweep" : ""}`}
+          style={{
+            background:
+              "radial-gradient(900px 420px at -10% 110%, rgba(46,204,113,0.28), transparent 60%)," +
+              "radial-gradient(900px 420px at 110% -10%, rgba(31,164,90,0.24), transparent 60%)"
+          }}
+        />
       </div>
-      <div className={`sheet-backdrop ${sheet ? "show" : ""}`} onClick={() => setSheet(false)} />
 
-      <style jsx>{`
-        /* Variabili locali (scoped al componente) */
-        .hdr {
-          --plant:#20c776;
-          --plant-700:#15975a;
-          --ink:#0a0b14;
-          --ink-600:#3a3f46;
-          --paper:#f3f6f4;
-          position:sticky; top:0; z-index:80; background:transparent;
+      {/* keyframes global per le sweep */}
+      <style jsx global>{`
+        @keyframes contactSweep {
+          0%   { transform: translate(-18%, 18%) rotate(-2deg); opacity: 0; }
+          25%  { opacity: 1; }
+          100% { transform: translate(18%, -18%) rotate(-2deg); opacity: 0; }
         }
-        .hdr.scrolled .main{ box-shadow: 0 10px 30px rgba(0,0,0,.06); }
+        @keyframes contactFadeIn { from { opacity: 0 } to { opacity: 1 } }
+        .contactFx-sweep { animation: contactSweep 1s cubic-bezier(.16,1,.3,1) forwards; }
+        .contactFx-fadeIn { animation: contactFadeIn .22s ease-out forwards; }
 
-        /* fascia utility */
-        .util{ background:#fff; border-bottom:1px solid rgba(0,0,0,.06); }
-        .inner{
-          max-width:1200px; margin:0 auto; padding:10px 20px;
-          display:flex; align-items:center; justify-content:space-between;
+        @keyframes solutionsSweep {
+          0%   { transform: translate(18%, 18%) rotate(2deg); opacity: 0; }
+          25%  { opacity: 1; }
+          100% { transform: translate(-18%, -18%) rotate(2deg); opacity: 0; }
         }
-        .util-nav{ display:flex; gap:18px; }
-        .util-nav a{ color:#4b5563; text-decoration:none; font-weight:700; font-size:14px; }
-        .util-right{ display:flex; align-items:center; gap:8px; }
+        @keyframes solutionsFadeIn { from { opacity: 0 } to { opacity: 1 } }
+        .solutionsFx-sweep { animation: solutionsSweep 1s cubic-bezier(.16,1,.3,1) forwards; }
+        .solutionsFx-fadeIn { animation: solutionsFadeIn .22s ease-out forwards; }
 
-        .lang{ position:relative; }
-        .langBtn{
-          display:inline-flex; align-items:center; gap:8px;
-          height:34px; padding:0 12px; border-radius:999px;
-          background:#fff; border:1px solid rgba(0,0,0,.12);
-          font-weight:900; color:#111827; cursor:pointer;
+        @media (prefers-reduced-motion: reduce){
+          .contactFx-sweep,.contactFx-fadeIn,.solutionsFx-sweep,.solutionsFx-fadeIn { animation: none !important; }
         }
-        .langMenu{
-          position:absolute; right:0; top:40px; min-width:180px;
-          background:#fff; border:1px solid rgba(0,0,0,.1); border-radius:12px;
-          box-shadow:0 12px 26px rgba(0,0,0,.12);
-          padding:6px; opacity:0; transform:translateY(-6px);
-          pointer-events:none; transition:all .18s ease;
-        }
-        .langMenu.show{ opacity:1; transform:translateY(0); pointer-events:auto; }
-        .langItem{
-          width:100%; text-align:left; padding:10px 12px; border-radius:8px;
-          background:transparent; border:none; cursor:pointer; font-weight:800;
-        }
-        .langItem:hover{ background:rgba(32,199,118,.10); }
-        .langItem.active{ background:rgba(32,199,118,.18); }
-
-        .iconBtn{
-          height:34px; width:34px; border-radius:999px; border:1px solid rgba(0,0,0,.12);
-          background:#fff; display:grid; place-items:center; cursor:pointer;
-        }
-
-        /* fascia main */
-        .main{ background:var(--paper); }
-        .logo{ display:flex; align-items:center; gap:10px; text-decoration:none; color:var(--ink); }
-        .monogram{
-          width:40px; height:40px; border-radius:12px; display:grid; place-items:center;
-          font-weight:900; color:#062a1a;
-          background:radial-gradient(120% 120% at 20% 20%, var(--plant) 0%, #7fe3a7 55%, #e8fff1 100%);
-          box-shadow:0 8px 22px rgba(32,199,118,.3);
-        }
-        .brand{ font-family:"Inter Tight", ui-sans-serif; font-weight:900; font-size:20px; letter-spacing:.2px; }
-
-        .nav{ display:none; gap:22px; align-items:center; }
-        @media (min-width:980px){ .nav{ display:flex; } }
-
-        .link{
-          display:inline-flex; align-items:center; gap:6px; background:none; border:none; cursor:pointer;
-          font-weight:800; color:#0f172a; text-decoration:none; padding:10px 8px; border-radius:10px; line-height:1;
-        }
-        .link:hover{ background:rgba(0,0,0,.05); }
-
-        /* dropdown pulito e allineato */
-        .dd{ position:relative; }
-        .panel{
-          position:absolute; left:0; top:44px;
-          width: 280px; /* larghezza chiara e costante */
-          padding:8px;
-          background:#fff; border:1px solid rgba(0,0,0,.08); border-radius:14px;
-          box-shadow:0 18px 36px rgba(0,0,0,.12);
-          opacity:0; transform:translateY(-6px); pointer-events:none; transition:all .18s ease;
-        }
-        .panel.open{ opacity:1; transform:translateY(0); pointer-events:auto; }
-        .panel .item{
-          display:block; padding:12px 12px; border-radius:10px; text-decoration:none;
-          font-weight:750; color:#111827; white-space:nowrap;
-        }
-        .panel .item:hover{ background:rgba(32,199,118,.10); }
-
-        .right{ display:flex; align-items:center; gap:10px; }
-        .cta{
-          display:inline-flex; align-items:center; gap:8px;
-          height:44px; padding:0 18px; border-radius:999px;
-          font-weight:900; color:#062a1a; background:linear-gradient(90deg, var(--plant), var(--plant-700));
-          box-shadow:0 12px 28px rgba(32,199,118,.35); border:none; cursor:pointer;
-        }
-        .cta:hover{ transform:translateY(-1px); box-shadow:0 16px 34px rgba(32,199,118,.5); }
-
-        .burger{
-          display:inline-grid; place-items:center; width:44px; height:40px;
-          background:#fff; border:1px solid rgba(0,0,0,.12); border-radius:10px; cursor:pointer;
-        }
-        .burger span{ width:20px; height:2px; background:#111827; border-radius:2px; }
-        .burger span:not(:last-child){ margin-bottom:4px; }
-        @media (min-width:980px){ .burger{ display:none; } }
-
-        /* drawer mobile */
-        .drawer{
-          position:fixed; inset:0; background:rgba(0,0,0,.35);
-          opacity:0; pointer-events:none; transition:opacity .2s ease; z-index:90;
-        }
-        .drawer.show{ opacity:1; pointer-events:auto; }
-        .drawer-body{
-          position:absolute; top:0; right:0; height:100%; width:min(86vw, 420px);
-          background:#fff; box-shadow: -22px 0 40px rgba(0,0,0,.25);
-          padding:18px; display:grid; gap:8px;
-          transform:translateX(100%); transition:transform .26s cubic-bezier(.2,.8,.2,1);
-        }
-        .drawer.show .drawer-body{ transform:translateX(0); }
-        .m-link{
-          padding:12px; border-radius:10px; text-decoration:none; font-weight:800; color:#111827;
-        }
-        .m-link:hover{ background:rgba(0,0,0,.05); }
-        .m-cta{
-          margin-top:6px; display:inline-flex; align-items:center; justify-content:center;
-          height:44px; border-radius:999px; text-decoration:none; font-weight:900; border:none; cursor:pointer;
-          background:linear-gradient(90deg, var(--plant), var(--plant-700)); color:#062a1a;
-          box-shadow:0 12px 28px rgba(32,199,118,.35);
-        }
-
-        /* ---- Schedule Sheet ---- */
-        .sheet-backdrop{
-          position:fixed; inset:0; background:rgba(0,0,0,.45);
-          opacity:0; pointer-events:none; transition:opacity .22s ease; z-index:97;
-        }
-        .sheet-backdrop.show{ opacity:1; pointer-events:auto; }
-        .sheet{
-          position:fixed; top:0; right:0; height:100%; width:min(94vw, 520px); z-index:98;
-          background:#fff; border-left:1px solid rgba(0,0,0,.08);
-          transform:translateX(100%); transition:transform .28s cubic-bezier(.2,.8,.2,1);
-          display:grid; grid-template-rows:auto 1fr; overflow:auto;
-          box-shadow:-26px 0 60px rgba(0,0,0,.25);
-        }
-        .sheet.show{ transform:translateX(0); }
-        .x{
-          position:absolute; top:12px; right:12px; width:36px; height:36px;
-          border-radius:999px; border:1px solid rgba(0,0,0,.12); background:#fff; cursor:pointer;
-          font-size:22px; line-height:1; display:grid; place-items:center;
-        }
-
-        .sheet-hero{
-          padding:22px 22px 16px;
-          background:
-            radial-gradient(650px 320px at 80% 10%, rgba(21,151,90,.35), transparent 70%),
-            #0b1412;
-          color:#fff;
-        }
-        .sheet-hero h3{ margin:6px 0 6px; font-size:28px; }
-        .sheet-hero p{ margin:0; opacity:.9; }
-
-        .form{ padding:16px 18px 24px; display:grid; gap:12px; }
-        .row{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-        @media (max-width:560px){ .row{ grid-template-columns:1fr; } }
-
-        .field{ position:relative; display:grid; }
-        .field.full{ grid-column:1 / -1; }
-        .field input, .field textarea{
-          width:100%; background:#fff; border:1px solid rgba(0,0,0,.14);
-          border-radius:12px; padding:14px 12px 12px; font-size:14.5px; outline:none;
-          transition:border-color .2s ease, box-shadow .2s ease;
-        }
-        .field textarea{ resize:vertical; }
-        .field input:focus, .field textarea:focus{
-          border-color:var(--plant); box-shadow:0 0 0 3px rgba(32,199,118,.25);
-        }
-        .field label{
-          position:absolute; left:12px; top:12px; font-size:13px; color:#6b7280;
-          transition:transform .18s ease, color .18s ease, font-size .18s ease, top .18s ease;
-          pointer-events:none; background:#fff; padding:0 4px; border-radius:6px;
-        }
-        .field input:not(:placeholder-shown)+label,
-        .field textarea:not(:placeholder-shown)+label,
-        .field input:focus+label,
-        .field textarea:focus+label{
-          top:-8px; font-size:11px; color:#374151; box-shadow:0 0 0 4px #fff inset;
-        }
-
-        .switch{
-          display:flex; align-items:center; gap:10px; margin-top:2px; user-select:none;
-        }
-        .switch input{ position:absolute; opacity:0; }
-        .track{
-          width:44px; height:24px; border-radius:999px; background:rgba(0,0,0,.12); position:relative;
-          transition:background .2s ease;
-        }
-        .track::after{
-          content:""; position:absolute; top:50%; left:3px; transform:translateY(-50%);
-          width:18px; height:18px; border-radius:999px; background:#fff; box-shadow:0 2px 6px rgba(0,0,0,.25);
-          transition:left .2s ease;
-        }
-        .switch input:checked + .track{ background:linear-gradient(90deg, var(--plant), var(--plant-700)); }
-        .switch input:checked + .track::after{ left:23px; }
-        .txt{ font-size:13.5px; color:#111827; }
-
-        .submit{
-          margin-top:4px; height:46px; border:none; border-radius:12px; cursor:pointer;
-          font-weight:900; color:#062a1a; background:linear-gradient(90deg, var(--plant), var(--plant-700));
-          box-shadow:0 12px 28px rgba(32,199,118,.35);
-        }
-        .submit:hover{ transform:translateY(-1px); box-shadow:0 16px 36px rgba(32,199,118,.5); }
       `}</style>
     </header>
   );
 }
 
-/* ---------------- Icons ---------------- */
-function ChevronDown() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  );
-}
-function SearchIcon(){
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2"/>
-      <path d="M20 20l-3.5-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-    </svg>
-  );
-}
-function ArrowRight(){
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  );
-}
-function Globe(){
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.7"/>
-      <path d="M3 12h18M12 3c3 3.6 3 13.4 0 18M12 3c-3 3.6-3 13.4 0 18" stroke="currentColor" strokeWidth="1.7"/>
-    </svg>
-  );
-}
+/* Icons */
+function ChevronDown(){return(<svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden><path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>);}
+function SearchIcon(){return(<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden><circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>);}
+function ArrowRight(){return(<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>);}
+function Globe(){return(<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.7"/><path d="M3 12h18M12 3c3 3.6 3 13.4 0 18M12 3c-3 3.6-3 13.4 0 18" stroke="currentColor" strokeWidth="1.7"/></svg>);}

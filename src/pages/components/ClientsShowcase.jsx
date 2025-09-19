@@ -1,230 +1,242 @@
 // components/ClientsShowcase.jsx
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 
 export default function ClientsShowcase() {
+  const showcase = [
+    {
+      img: "/hero-1.jpg",
+      title: "Vereijken",
+      desc: "High-tech tomato production across Europe, powered by AI-driven strategies.",
+    },
+    {
+      img: "/hero-2.jpg",
+      title: "Finka",
+      desc: "Sustainable greenhouse operations delivering consistent quality in Latin America.",
+    },
+    {
+      img: "/hero-3.jpg",
+      title: "Growers United",
+      desc: "A cooperative leveraging data to optimize yield and market positioning.",
+    },
+  ];
+
+  const [active, setActive] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(
+      () => setActive((i) => (i + 1) % showcase.length),
+      5000
+    );
+    return () => clearInterval(id);
+  }, []);
+
   return (
-    <section className="clients-section" aria-labelledby="clients-title">
+    <section className="clients" aria-labelledby="clients-title">
       <div className="inner">
-        {/* Colonna sinistra - testo */}
+        {/* colonna sinistra */}
         <div className="lead">
           <h2 id="clients-title" className="title">
-            Satisfied customers
+            Satisfied <span className="highlight">customers</span>
             <br /> across the globe
           </h2>
-
           <p className="intro">
-            We collaborate with more than <strong>2,000 customers</strong> in{" "}
-            <strong>45+ countries</strong>. Discover the value they get from our
-            plant-centric technology and services.
+            We collaborate with more than <strong>2,000 clients</strong> in{" "}
+            <strong>45+ countries</strong>. Discover how they scale their
+            operations with Planttec.
           </p>
-
-          <Link href="/cases" className="cta" aria-label="Read our success stories">
-            Success stories
-            <ArrowRight />
+          <p>
+            Every project combines <strong>data</strong>,{" "}
+            <strong>predictive insights</strong> and{" "}
+            <strong>sustainable practices</strong> to deliver results that last.
+          </p>
+          <Link href="/cases" className="cta">
+            Read success stories <ArrowRight />
           </Link>
         </div>
 
-        {/* Colonna destra - griglia loghi */}
-        <ul className="logos" role="list" aria-label="Customers">
-          {LOGOS.map((L, i) => (
-            <li key={i} className="card" title={L.label}>
-              <div className="logoWrap" aria-hidden>
-                <L.Component />
-              </div>
-              <span className="sr-only">{L.label}</span>
-            </li>
+        {/* colonna destra */}
+        <div className="slideshow">
+          {showcase.map((c, i) => (
+            <figure
+              key={i}
+              className={`slide ${i === active ? "is-active" : ""}`}
+            >
+              <img src={c.img} alt={c.title} />
+              <figcaption>
+                <h3>{c.title}</h3>
+                <p>{c.desc}</p>
+              </figcaption>
+            </figure>
           ))}
-        </ul>
+          <div className="dots">
+            {showcase.map((_, i) => (
+              <button
+                key={i}
+                className={i === active ? "on" : ""}
+                onClick={() => setActive(i)}
+                aria-label={`Show slide ${i + 1}`}
+              />
+            ))}
+          </div>
+        </div>
       </div>
 
       <style jsx>{`
-        /* Variabili locali (scoped al componente) */
-        .clients-section {
+        .clients {
+          --green: #2ecc71;
+          --green-700: #1fa45a;
           --ink: #0b1320;
           --muted: #667085;
-          --surface: #ffffff;
-          --edge: rgba(12, 18, 28, 0.08);
-          --edge-strong: rgba(12, 18, 28, 0.14);
-          --brand: #2ecc71;       /* verde Planttec */
-          --brand-700: #1fa45a;
 
-          position: relative;
-          padding: clamp(48px, 8vw, 96px) 20px;
-          background:
-            radial-gradient(1200px 500px at 90% 10%, rgba(46, 204, 113, 0.06), transparent 60%),
-            #fafcff;
+          padding: clamp(64px, 8vw, 110px) 20px;
+          background: radial-gradient(
+              900px 480px at 90% 10%,
+              rgba(46, 204, 113, 0.06),
+              transparent 60%
+            ),
+            #f9fbf9;
         }
-
         .inner {
-          max-width: 1200px;
+          max-width: 1240px;
           margin: 0 auto;
           display: grid;
-          grid-template-columns: 1.05fr 1.4fr;
-          gap: clamp(24px, 5vw, 40px);
-          align-items: start;
+          grid-template-columns: 1fr 1fr;
+          gap: clamp(32px, 5vw, 60px);
+          align-items: center;
         }
 
-        /* Lead */
+        /* testo */
         .title {
-          margin: 0 0 16px;
-          font-family: "Inter Tight", ui-sans-serif, system-ui, -apple-system;
-          font-size: clamp(36px, 6.2vw, 62px);
-          line-height: 1.05;
+          margin: 0 0 20px;
+          font-family: "Inter Tight", sans-serif;
+          font-size: clamp(38px, 6vw, 64px);
           font-weight: 900;
-          letter-spacing: -0.6px;
+          line-height: 1.08;
           color: var(--ink);
         }
+        .highlight {
+          background: linear-gradient(90deg, var(--green), var(--green-700));
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+        }
         .intro {
-          margin: 0 0 24px;
+          font-size: 18px;
+          line-height: 1.6;
+          margin-bottom: 18px;
           color: var(--muted);
-          font-size: clamp(16px, 2vw, 18px);
-          line-height: 1.7;
+        }
+        .lead p {
+          margin: 0 0 16px;
+          color: var(--muted);
         }
         .cta {
           display: inline-flex;
           align-items: center;
-          gap: 10px;
-          height: 48px;
-          padding: 0 20px;
+          gap: 8px;
+          padding: 12px 22px;
           border-radius: 999px;
-          text-decoration: none;
           font-weight: 900;
+          text-decoration: none;
+          background: linear-gradient(90deg, var(--green), var(--green-700));
           color: #052013;
-          background: linear-gradient(90deg, var(--brand), var(--brand-700));
-          box-shadow: 0 12px 28px rgba(46, 204, 113, 0.3);
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
+          box-shadow: 0 10px 28px rgba(46, 204, 113, 0.35);
+          transition: transform 0.25s ease, box-shadow 0.25s ease;
         }
         .cta:hover {
           transform: translateY(-2px);
-          box-shadow: 0 16px 36px rgba(46, 204, 113, 0.45);
+          box-shadow: 0 16px 38px rgba(46, 204, 113, 0.5);
         }
 
-        /* Griglia loghi */
-        .logos {
-          list-style: none;
-          margin: 0;
-          padding: 0;
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: clamp(14px, 2.4vw, 22px);
+        /* slideshow */
+        .slideshow {
+          position: relative;
+          overflow: hidden;
+          border-radius: 20px;
+          box-shadow: 0 18px 44px rgba(0, 0, 0, 0.12);
+          min-height: 420px;
         }
-
-        .card {
-          background: var(--surface);
-          border: 1px solid var(--edge);
-          border-radius: 18px;
-          min-height: 120px;
-          display: grid;
-          place-items: center;
-          padding: 18px;
-          box-shadow: 0 8px 24px rgba(12, 18, 28, 0.06);
-          transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+        .slide {
+          position: absolute;
+          inset: 0;
+          opacity: 0;
+          transform: translateX(40px);
+          transition: opacity 0.8s ease, transform 0.8s ease;
         }
-        .card:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 16px 34px rgba(12, 18, 28, 0.12);
-          border-color: var(--edge-strong);
-        }
-
-        .logoWrap {
-          width: min(220px, 80%);
-          height: 54px;
-          display: grid;
-          place-items: center;
-          filter: grayscale(1) contrast(1.05);
-          opacity: 0.75;
-          transition: filter 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
-        }
-        .card:hover .logoWrap {
-          filter: grayscale(0);
+        .slide.is-active {
           opacity: 1;
-          transform: scale(1.02);
+          transform: translateX(0);
+          z-index: 1;
+        }
+        .slide img {
+          width: 100%;
+          height: 300px;
+          object-fit: cover;
+          border-radius: 20px 20px 0 0;
+        }
+        figcaption {
+          background: #fff;
+          padding: 18px 20px;
+          border-top: 3px solid var(--green);
+        }
+        figcaption h3 {
+          margin: 0 0 6px;
+          font-size: 20px;
+          font-weight: 800;
+          color: var(--ink);
+        }
+        figcaption p {
+          margin: 0;
+          font-size: 14.5px;
+          line-height: 1.5;
+          color: var(--muted);
         }
 
-        /* Responsività */
-        @media (max-width: 1024px) {
+        .dots {
+          position: absolute;
+          bottom: 14px;
+          right: 14px;
+          display: flex;
+          gap: 8px;
+        }
+        .dots button {
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          border: none;
+          background: rgba(255, 255, 255, 0.7);
+          cursor: pointer;
+          transition: background 0.3s ease;
+        }
+        .dots button.on {
+          background: var(--green);
+        }
+
+        @media (max-width: 900px) {
           .inner {
             grid-template-columns: 1fr;
           }
-          .logos {
-            grid-template-columns: repeat(3, 1fr);
+          .slideshow {
+            margin-top: 32px;
           }
-        }
-        @media (max-width: 640px) {
-          .logos {
-            grid-template-columns: repeat(2, 1fr);
-          }
-          .card {
-            min-height: 100px;
-            border-radius: 14px;
-          }
-        }
-
-        /* Accessibilità: screen reader only */
-        .sr-only {
-          position: absolute;
-          width: 1px;
-          height: 1px;
-          padding: 0;
-          margin: -1px;
-          overflow: hidden;
-          clip: rect(0, 0, 0, 0);
-          border: 0;
         }
       `}</style>
     </section>
   );
 }
 
-/* ---------- Mock loghi (SVG minimal, nessuna dipendenza da asset esterni) ---------- */
-const LOGOS = [
-  { label: "Vereijken", Component: LogoVereijken },
-  { label: "Finka", Component: LogoFinka },
-  { label: "AgriCo", Component: LogoAgrico },
-  { label: "Horti Tech", Component: LogoHortiTech },
-  { label: "Bredefleur", Component: LogoBredefleur },
-  { label: "FoodVentures", Component: LogoFoodVentures },
-  { label: "EveryD Flowers", Component: LogoEveryD },
-  { label: "Growers United", Component: LogoGrowers },
-  { label: "Den Berk", Component: LogoDenBerk },
-];
-
-/* Piccole icone testuali in stile “logo” */
-function LogoText({ text }) {
-  return (
-    <svg viewBox="0 0 420 120" role="img" aria-label={text} style={{ width: "100%", height: "100%" }}>
-      <rect x="1" y="1" width="418" height="118" rx="14" fill="none" stroke="rgba(12,18,28,.08)" />
-      <text
-        x="50%"
-        y="56%"
-        textAnchor="middle"
-        fontFamily="Inter, ui-sans-serif, system-ui, -apple-system"
-        fontWeight="800"
-        fontSize="42"
-        fill="#1b2430"
-      >
-        {text}
-      </text>
-    </svg>
-  );
-}
-
-function LogoVereijken() { return <LogoText text="VEREIJKEN" />; }
-function LogoFinka() { return <LogoText text="finka" />; }
-function LogoAgrico() { return <LogoText text="AgriCo" />; }
-function LogoHortiTech() { return <LogoText text="Horti Tech" />; }
-function LogoBredefleur() { return <LogoText text="BREDEFLEUR" />; }
-function LogoFoodVentures() { return <LogoText text="FOODVENTURES" />; }
-function LogoEveryD() { return <LogoText text="EveryD" />; }
-function LogoGrowers() { return <LogoText text="growers" />; }
-function LogoDenBerk() { return <LogoText text="den berk" />; }
-
-/* Icona freccia per il bottone */
+/* Icona freccia */
 function ArrowRight() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M5 12h14M13 6l6 6-6 6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
